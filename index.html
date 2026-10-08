@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Экспертная лаборатория — игра по теории судебной экспертизы</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=PT+Sans+Narrow:wght@400;700&family=PT+Serif:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#E6ECEE; --sheet:#FBFCFC; --ink:#1B2B3A; --muted:#5B6B78; --line:#C7D1D6; --soft:#EEF2F4;
+  --tag:#F2C230; --tag-ink:#2A2100; --ok:#2E7D4F; --bad:#B3261E; --focus:#1F6FB2;
+  --serif:"PT Serif", Georgia, "Times New Roman", serif;
+  --narrow:"PT Sans Narrow", "Arial Narrow", Arial, sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#131C24; --sheet:#1C2731; --ink:#E4EAEE; --muted:#93A3AF; --line:#33434F; --soft:#24313C;
+    --tag:#E9B824; --ok:#5DBB86; --bad:#F06A61; --focus:#6FB3EE;
+  }
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--serif);font-size:18px;line-height:1.6}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+.wrap{max-width:880px;margin:0 auto;padding:20px 16px 48px}
+
+.tape{background:var(--tag);color:var(--tag-ink);font-family:var(--narrow);font-weight:700;
+  display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px 20px;padding:10px 18px;font-size:17px;
+  background-image:repeating-linear-gradient(-45deg,transparent 0 22px,rgba(0,0,0,.07) 22px 26px)}
+.sheet{background:var(--sheet);border:1px solid var(--line);border-radius:3px;
+  padding:28px clamp(18px,4vw,40px) 32px;margin-top:20px;position:relative;overflow:hidden;
+  box-shadow:0 1px 0 var(--line),0 14px 30px -22px rgba(10,20,30,.45)}
+
+h1{font-family:var(--narrow);font-weight:700;font-size:clamp(40px,7vw,64px);line-height:1.02;margin:0 0 18px;letter-spacing:-.01em}
+h2{font-family:var(--narrow);font-weight:700;font-size:26px;line-height:1.2;margin:0 0 10px}
+h3{font-family:var(--narrow);font-size:21px;margin:26px 0 8px}
+.muted{color:var(--muted)}
+.small{font-family:var(--narrow);font-size:16px;color:var(--muted)}
+
+/* characters */
+.speaker{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:start;margin:0 0 20px}
+.speaker svg{width:92px;height:92px;display:block}
+.bubble{background:var(--soft);border-radius:4px;padding:12px 16px 14px;position:relative;max-width:64ch}
+.bubble::before{content:"";position:absolute;left:-9px;top:22px;border:9px solid transparent;border-left:0;border-right-color:var(--soft)}
+.who{font-family:var(--narrow);font-size:17px;margin:0 0 4px}
+.who b{font-size:19px}
+.bubble p{margin:0}
+.bubble .said{font-style:italic}
+@media (max-width:520px){.speaker{grid-template-columns:1fr}.speaker svg{width:72px;height:72px}.bubble::before{display:none}}
+
+/* form */
+.field{display:grid;gap:4px;margin-bottom:14px;max-width:420px}
+.field label{font-family:var(--narrow);font-size:18px}
+.field input{border:1.5px solid var(--line);background:var(--sheet);border-radius:3px;padding:9px 12px}
+.field input:focus{border-color:var(--ink)}
+.avatars{display:flex;flex-wrap:wrap;gap:10px;margin:6px 0 24px}
+.av{border:2px solid transparent;background:transparent;border-radius:50%;padding:2px;line-height:0}
+.av svg{width:64px;height:64px}
+.av[aria-pressed="true"]{border-color:var(--ink)}
+.err{color:var(--bad);font-family:var(--narrow);font-size:17px;min-height:1.4em;margin:4px 0 8px}
+
+.btn{border:none;background:var(--ink);color:var(--sheet);font-family:var(--narrow);font-weight:700;font-size:21px;padding:12px 26px;border-radius:3px}
+.btn:hover{filter:brightness(1.15)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--ink);font-size:18px;padding:8px 18px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+
+/* game */
+.meta{display:flex;justify-content:space-between;align-items:center;gap:12px;font-family:var(--narrow);color:var(--muted);font-size:17px;margin-bottom:6px}
+.me{display:flex;align-items:center;gap:8px;color:var(--ink)}
+.me svg{width:34px;height:34px}
+.timer{height:5px;background:var(--line);margin:0 0 22px;border-radius:3px;overflow:hidden}
+.timer i{display:block;height:100%;background:var(--ink);width:100%;transform-origin:left}
+.q{font-weight:700;margin:0 0 16px;max-width:66ch}
+.opts{display:grid;gap:10px}
+.opt{display:flex;gap:14px;align-items:flex-start;text-align:left;width:100%;background:transparent;border:1.5px solid var(--line);border-radius:3px;padding:12px 14px;line-height:1.45}
+.opt:hover:not(:disabled){border-color:var(--ink)}
+.opt b{font-family:var(--narrow);font-size:20px;min-width:22px;line-height:1.2}
+.opt:disabled{cursor:default}
+.opt.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,transparent)}
+.opt.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 10%,transparent)}
+.opt.dim{opacity:.55}
+.stamp{position:absolute;right:clamp(10px,4vw,34px);top:64px;font-family:var(--narrow);font-weight:700;font-size:clamp(28px,6vw,44px);
+  border:5px double currentColor;padding:2px 16px;border-radius:6px;transform:rotate(-11deg);opacity:.9;pointer-events:none;
+  animation:stamp .32s cubic-bezier(.2,1.6,.4,1) both;background:color-mix(in srgb,var(--sheet) 70%,transparent)}
+.stamp.ok{color:var(--ok)} .stamp.bad{color:var(--bad)}
+@keyframes stamp{from{transform:rotate(-11deg) scale(2.4);opacity:0}to{transform:rotate(-11deg) scale(1);opacity:.9}}
+.after{margin-top:22px;border-top:1px dashed var(--line);padding-top:18px}
+.pts{font-family:var(--narrow);font-size:19px;margin:0 0 12px}
+
+.final-rank{font-family:var(--narrow);font-weight:700;font-size:clamp(34px,6vw,52px);line-height:1.05;margin:4px 0 6px}
+.status{font-family:var(--narrow);font-size:18px;margin:14px 0 22px}
+.status.ok{color:var(--ok)} .status.bad{color:var(--bad)}
+
+/* admin */
+.stats{display:flex;flex-wrap:wrap;gap:10px 34px;margin:6px 0 18px;font-family:var(--narrow);font-size:18px}
+.stats b{font-size:28px;display:block;line-height:1.1}
+.tablebox{overflow-x:auto;margin:6px 0 10px}
+table{width:100%;border-collapse:collapse;font-family:var(--narrow);font-size:17px;min-width:620px}
+th{text-align:left;color:var(--muted);font-weight:400;border-bottom:1.5px solid var(--ink);padding:6px 6px}
+td{padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.num,th.num{text-align:right}
+td .mini{display:inline-block;vertical-align:middle;margin-right:6px}
+td .mini svg{width:28px;height:28px}
+.barcell{display:flex;align-items:center;gap:8px}
+.barcell i{display:block;height:8px;background:var(--ink);border-radius:2px}
+label.chk{font-family:var(--narrow);font-size:18px;display:flex;gap:8px;align-items:center}
+.demo{background:var(--soft);border-left:4px solid var(--tag);padding:10px 14px;font-family:var(--narrow);font-size:17px;margin-bottom:18px}
+
+@media (prefers-reduced-motion: reduce){.stamp{animation:none}}
+@media (max-width:560px){body{font-size:17px}.stamp{top:54px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="tape"><span>Экспертная лаборатория · ТСЭ, лекции 2–3</span><span id="tape-right"></span></div>
+  <main class="sheet" id="app" aria-live="polite"></main>
+</div>
+
+<script>
+/* ================== НАСТРОЙКИ ==================
+   Здесь ничего менять не нужно: таблица подключается
+   прямо в кабинете руководителя (адрес сайта + #admin). */
+const API_URL = "";
+const TIME = 40;              // секунд на одно дело
+/* =============================================== */
+
+/* ---------- Персонажи ---------- */
+const PEOPLE = {
+  mentor:{name:"Бакыт Асанович",role:"руководитель лаборатории",skin:"#E0B48F",hair:"#B9BEC2",style:"bald",outfit:"#F3F5F6",shirt:"#3E6A8A",glasses:true,bg:"#CFE0EA",coat:true},
+  inv:{name:"Айгерим Садыкова",role:"следователь",skin:"#E6BE98",hair:"#1F1A17",style:"bun",outfit:"#24405E",shirt:"#E8EEF3",badge:true,bg:"#F6E3A6"},
+  judge:{name:"Нурлан Мамбетов",role:"судья",skin:"#D5A57D",hair:"#2B2420",style:"short",outfit:"#1E1E22",shirt:"#FFFFFF",jabot:true,bg:"#E3D6EA"},
+  crim:{name:"Данияр Осмонов",role:"специалист-криминалист",skin:"#C99671",hair:"#2A2018",style:"cap",cap:"#1F5F5C",outfit:"#2F7D7A",shirt:"#DDEFEA",bg:"#D4EBDD"},
+  insp:{name:"Эрмек Жумабаев",role:"инспектор патрульной службы",skin:"#D9AC86",hair:"#231C17",style:"cap",cap:"#22395E",outfit:"#3C5E8E",shirt:"#C9D8EA",badge:true,bg:"#DDE6F5"},
+  kanat:{name:"Канат",role:"одногруппник",skin:"#E3B995",hair:"#5A3A22",style:"short",outfit:"#C2553A",shirt:"#F0D4C8",bg:"#F5DCD3"},
+  gulzat:{name:"Гулзат эже",role:"соседка",skin:"#D8A882",hair:"#3B2A22",style:"long",outfit:"#7A4E8C",shirt:"#EAD8F0",bg:"#F0DDE8"}
+};
+const AVATARS = [
+  {skin:"#E6BE98",hair:"#1F1A17",style:"long",outfit:"#2F6F9F",shirt:"#DCEAF5",bg:"#D7E8F2"},
+  {skin:"#D9AC86",hair:"#2A2018",style:"short",outfit:"#4F6B3A",shirt:"#E3EDD8",bg:"#E2EDD3"},
+  {skin:"#E8C3A0",hair:"#6B3E22",style:"bun",outfit:"#9C3D54",shirt:"#F3DCE2",bg:"#F4DDE3"},
+  {skin:"#C99671",hair:"#151210",style:"short",outfit:"#33363B",shirt:"#E6E6E6",glasses:true,bg:"#E5E1D6"},
+  {skin:"#E0B48F",hair:"#2B2420",style:"long",outfit:"#B07A1E",shirt:"#F6E8C8",glasses:true,bg:"#F5E7C4"},
+  {skin:"#D5A57D",hair:"#3B2A22",style:"cap",cap:"#6A3D9A",outfit:"#5A4C8C",shirt:"#E2DDF2",bg:"#E1DCF0"}
+];
+
+let PID=0;
+function portrait(p, mood="neutral"){
+  const cid="cp"+(++PID);
+  const hairBack = p.style==="long"
+    ? `<path d="M28 46C26 24 40 17 50 17C62 17 75 24 72 46L75 74H61L64 44H36L39 74H25Z" fill="${p.hair}"/>` : "";
+  let hairTop = "";
+  if(p.style==="short") hairTop=`<path d="M30 44C29 26 40 20 50 20C62 20 72 27 70 44C68 34 60 30 50 31C40 31 33 35 30 44Z" fill="${p.hair}"/>`;
+  if(p.style==="bun") hairTop=`<circle cx="50" cy="19" r="8" fill="${p.hair}"/><path d="M31 46C28 28 40 23 50 23C61 23 72 28 69 46C66 33 58 31 50 31C42 31 34 34 31 46Z" fill="${p.hair}"/>`;
+  if(p.style==="long") hairTop=`<path d="M30 44C29 26 40 20 50 20C62 20 72 27 70 44C64 32 56 30 48 31C40 32 34 36 30 44Z" fill="${p.hair}"/>`;
+  if(p.style==="bald") hairTop=`<path d="M31 50C29 41 31 35 35 32L36 50Z" fill="${p.hair}"/><path d="M69 50C71 41 69 35 65 32L64 50Z" fill="${p.hair}"/>`;
+  if(p.style==="cap") hairTop=`<path d="M31 44C31 38 33 35 35 34L35 46Z" fill="${p.hair}"/><path d="M29 38C29 21 71 21 71 38Z" fill="${p.cap}"/><path d="M50 35L82 37L74 41L50 40Z" fill="${p.cap}"/><circle cx="50" cy="29" r="2.2" fill="#E9B824"/>`;
+  const mouth = mood==="happy" ? `<path d="M42.5 55.5Q50 63 57.5 55.5" fill="none" stroke="#5A2A1E" stroke-width="2.2" stroke-linecap="round"/>`
+    : mood==="sad" ? `<path d="M43.5 59.5Q50 54.5 56.5 59.5" fill="none" stroke="#5A2A1E" stroke-width="2.2" stroke-linecap="round"/>`
+    : `<path d="M44.5 57.5H55.5" stroke="#5A2A1E" stroke-width="2.2" stroke-linecap="round"/>`;
+  const brows = mood==="sad"
+    ? `<path d="M39.5 40.5L46 39M60.5 40.5L54 39" stroke="${p.style==='bald'?p.hair:'#2a221d'}" stroke-width="2" stroke-linecap="round"/>`
+    : `<path d="M39.5 39.5L46 38.5M60.5 39.5L54 38.5" stroke="${p.style==='bald'?p.hair:'#2a221d'}" stroke-width="2" stroke-linecap="round"/>`;
+  const glasses = p.glasses ? `<g fill="none" stroke="#2c3a46" stroke-width="1.6"><rect x="37" y="42" width="11" height="8" rx="3"/><rect x="52" y="42" width="11" height="8" rx="3"/><path d="M48 46H52"/></g>` : "";
+  const coat = p.coat ? `<path d="M50 71L40 100M50 71L60 100" stroke="#C9D1D6" stroke-width="1.4"/>` : "";
+  const collar = `<path d="M42 70L50 84L58 70Z" fill="${p.shirt}"/>`;
+  const jabot = p.jabot ? `<path d="M45 72H55L53 88H47Z" fill="#FFFFFF"/><path d="M47 76H53M47.5 80H52.5" stroke="#d6d6d6"/>` : "";
+  const badge = p.badge ? `<path d="M66 82L70 80L74 82L73 88L70 90L67 88Z" fill="#E9B824"/>` : "";
+  return `<svg viewBox="0 0 100 100" role="img" aria-label="${p.name||'Аватар'}" xmlns="http://www.w3.org/2000/svg">
+    <defs><clipPath id="${cid}"><circle cx="50" cy="50" r="50"/></clipPath></defs>
+    <g clip-path="url(#${cid})">
+      <circle cx="50" cy="50" r="50" fill="${p.bg}"/>
+      ${hairBack}
+      <path d="M12 102C14 79 31 69 50 69C69 69 86 79 88 102Z" fill="${p.outfit}"/>
+      ${collar}${jabot}${coat}${badge}
+      <rect x="44" y="57" width="12" height="15" rx="5" fill="${p.skin}"/>
+      <ellipse cx="50" cy="45" rx="19" ry="21" fill="${p.skin}"/>
+      <ellipse cx="31.5" cy="47" rx="3" ry="4.5" fill="${p.skin}"/><ellipse cx="68.5" cy="47" rx="3" ry="4.5" fill="${p.skin}"/>
+      ${hairTop}
+      ${brows}
+      <circle cx="42.5" cy="46" r="2.3" fill="#1b1b1b"/><circle cx="57.5" cy="46" r="2.3" fill="#1b1b1b"/>
+      <circle cx="39" cy="53" r="2.6" fill="#E58C7A" opacity=".28"/><circle cx="61" cy="53" r="2.6" fill="#E58C7A" opacity=".28"/>
+      ${glasses}${mouth}
+    </g></svg>`;
+}
+
+/* ---------- Дела ---------- */
+const CASES = [
+ {id:"c01",who:"inv",t:"Квартирная кража",f:"Осматриваю квартиру после кражи. На оконной раме следы пальцев рук. Я пригласила криминалиста, и он в ходе осмотра фиксирует и изымает следы.",
+  q:"В какой форме здесь использованы специальные знания?",
+  o:["Процессуальная: привлечение специалиста к следственному действию","Непроцессуальная: консультационно-справочная деятельность","Производство судебной экспертизы","Непроцессуальная: предварительное исследование"],a:0,
+  e:"Специалист участвует в осмотре — следственном действии, закреплённом в законе. Результат имеет доказательственное значение, значит форма процессуальная."},
+ {id:"c02",who:"insp",t:"Порошок в кармане",f:"Задержали гражданина с пакетом белого порошка. Дело ещё не возбуждено. Сотрудник ЭКП сделал экспресс-анализ, чтобы понять, наркотик ли это.",
+  q:"Есть ли у результата этого исследования доказательственное значение?",
+  o:["Да, это заключение эксперта","Да, если исследование провёл аттестованный эксперт","Нет: это непроцессуальная форма, предварительное исследование","Нет, потому что порошок не может быть объектом экспертизы"],a:2,
+  e:"Предварительные исследования до возбуждения дела — непроцессуальная форма. Они ориентирующие; доказательством станет заключение назначенной позже экспертизы."},
+ {id:"c03",who:"kanat",t:"Спор на семинаре",f:"Я уверен, что легального определения «специальных знаний» в Кыргызстане нет. Каждый понимает как хочет!",
+  q:"Где на самом деле закреплено определение специальных знаний?",
+  o:["В ст. 206 УПК КР","В ст. 2 Закона КР «О судебно-экспертной деятельности»","В ст. 88 ГПК КР","В постановлении Пленума ВС СССР 1971 г."],a:1,
+  e:"Ст. 2 Закона КР «О судебно-экспертной деятельности» (24.06.2013 № 100): знания специальные, если входят в систему теоретических знаний и практических навыков в области науки, техники, искусства или ремесла и приобретаются специальной подготовкой и (или) профессиональным опытом."},
+ {id:"c04",who:"judge",t:"Вопрос эксперту",f:"Готовлю постановление о назначении экспертизы. Хочу спросить эксперта: «Содержат ли действия обвиняемого состав мошенничества?»",
+  q:"Можно ли поставить такой вопрос эксперту?",
+  o:["Да, если у эксперта юридическое образование","Да, это вопрос правовой экспертизы","Нет: правовые вопросы решает суд, эксперту их ставить нельзя","Нет, но только в гражданском процессе"],a:2,
+  e:"Постановление Пленума ВС СССР от 16.03.1971 № 1 запретило решать вопросы правового характера при производстве экспертизы. Для экспертной задачи юридические знания из специальных исключаются."},
+ {id:"c05",who:"kanat",t:"Знания или познания",f:"В ГПК написано «специальные знания», в УПК — «специальные познания». Преподаватель спросил меня про позицию Сорокотягиных, а я не помню.",
+  q:"Как Д.А. и И.Н. Сорокотягины соотносят эти термины?",
+  o:["Это полные синонимы","«Знания» шире, чем «познания»","«Познания» шире: включают и будущие результаты познавательной деятельности","Термины относятся к разным видам судопроизводства"],a:2,
+  e:"Сорокотягины считают: «знания» — готовые результаты, «познания» шире. Е.Р. Россинская видит в них синонимы. В законодательстве КР они используются как синонимы."},
+ {id:"c06",who:"inv",t:"Отпечаток на стакане",f:"С места убийства изъят стакан со следом пальца. Я передаю эксперту дактокарты подозреваемого и спрашиваю: оставлен ли след его пальцем?",
+  q:"Какую задачу решает эксперт?",
+  o:["Идентификационную","Диагностико-классификационную","Собственно диагностическую","Диагностико-ситуационную"],a:0,
+  e:"Отождествление объекта (палец конкретного лица) по его отображению (след) — идентификационная задача: сравниваются общие и частные признаки папиллярного узора."},
+ {id:"c07",who:"crim",t:"Следы во дворе",f:"Сравнил след обуви с места происшествия с кроссовками подозреваемого. Модель и размер те же, но та ли это пара — признаков не хватает.",
+  q:"Как называется такой результат?",
+  o:["Установление конкретного тождества","Незавершённая идентификация (групповая принадлежность)","Диагностико-классификационное решение","Ошибка эксперта, такой вывод недопустим"],a:1,
+  e:"Признаков недостаточно для тождества, но отображение можно отнести к той же группе, что и проверяемый объект. Групповая принадлежность здесь — промежуточный этап идентификации."},
+ {id:"c08",who:"inv",t:"Нож из рюкзака",f:"У подростка изъяли нож. Мне нужно знать: это холодное оружие или хозяйственно-бытовой предмет?",
+  q:"Какую задачу решает эксперт?",
+  o:["Идентификационную","Незавершённую идентификацию","Диагностико-классификационную","Диагностико-ситуационную"],a:2,
+  e:"Свойства ножа сопоставляются не с другим объектом, а со стандартами холодного оружия. Отнесение к классу — цель всего исследования."},
+ {id:"c09",who:"judge",t:"Записка с угрозами",f:"В деле записка, написанная подсудимым. Защита утверждает, что он писал её в сильном опьянении. Я ставлю вопрос почерковеду.",
+  q:"К какому виду относится задача «выполнен ли текст в состоянии опьянения»?",
+  o:["Идентификационная","Собственно диагностическая","Диагностико-классификационная","Диагностико-ситуационная"],a:1,
+  e:"Состояние исполнителя устанавливается по диагностическим признакам почерка, которые сравниваются со знанием о том, как проявляется опьянение. Это собственно диагностическая задача."},
+ {id:"c10",who:"insp",t:"ДТП на перекрёстке",f:"Столкнулись две машины, водители винят друг друга. Нужен автотехник: как двигались машины, с какой скоростью, где именно произошёл удар.",
+  q:"Какую задачу решает эксперт-автотехник?",
+  o:["Идентификационную","Собственно диагностическую","Диагностико-классификационную","Диагностико-ситуационную"],a:3,
+  e:"Воспроизведение механизма события через изучение системы событий — диагностико-ситуационная задача."},
+ {id:"c11",who:"crim",t:"След протектора",f:"Изъял с грунта след протектора шины. Теперь оформляю документы для экспертизы.",
+  q:"Чем является след протектора по виду носителя информации?",
+  o:["Объект-предмет","Объект-отображение","Образец для сравнительного исследования","Материалы дела"],a:1,
+  e:"Объект-отображение — материальный объект, на котором в процессе следообразования отобразилась информация о другом объекте (о шине)."},
+ {id:"c12",who:"inv",t:"Образцы почерка",f:"Попросила подозреваемого прямо в кабинете написать текст под диктовку, чтобы передать почерковеду.",
+  q:"Как называются такие образцы?",
+  o:["Свободные","Условно-свободные","Экспериментальные","Пробы"],a:2,
+  e:"Экспериментальные образцы получают специально для экспертизы. Свободные созданы вне связи с делом, условно-свободные — после возникновения дела, но не для экспертизы."},
+ {id:"c13",who:"kanat",t:"Письмо и почерк",f:"Письмо исследуют почерковеды, автороведы и эксперты по документам. А почерк — только почерковеды. Как это в теории называется?",
+  q:"Чем являются письмо и почерк соответственно?",
+  o:["Общим и родовым объектом","Родовым и специальным объектом","Специальным и непосредственным объектом","Конкретным и общим объектом"],a:1,
+  e:"Родовой объект — группа носителей информации, общая для нескольких родов экспертиз (письмо). Специальный объект присущ конкретному роду экспертиз (почерк)."},
+ {id:"c14",who:"crim",t:"Порез на подошве",f:"На подошве ботинка подозреваемого есть порез — наступил на стекло. Использую его как признак при сравнении со следом.",
+  q:"Какой это признак по происхождению и по природе?",
+  o:["Собственный и закономерный","Приобретённый и случайный","Собственный и случайный","Приобретённый и закономерный"],a:1,
+  e:"Порез появился при эксплуатации (приобретённый) и не обусловлен конструкцией или технологией (случайный). Такие признаки особенно ценны для идентификации."},
+ {id:"c15",who:"judge",t:"Состав участников",f:"По делу работают следователь, я как судья, эксперт-баллист и специалист-криминалист.",
+  q:"Кто из нас — носители специальных знаний?",
+  o:["Следователь и судья","Эксперт и специалист","Все четверо","Только эксперт"],a:1,
+  e:"Субъекты делятся на носителей специальных знаний (эксперт, специалист) и тех, кто использует результаты (суд, следователь, иные лица)."},
+ {id:"c16",who:"gulzat",t:"Оценка для банка",f:"Банк перед кредитом заказал оценщику экспертизу стоимости моей квартиры. Это ведь судебная экспертиза, правда?",
+  q:"Права ли Гулзат эже?",
+  o:["Да, любая экспертиза стоимости — судебная","Да, если у оценщика есть лицензия","Нет: нет цели содействия следствию или суду и законного порядка назначения","Нет, потому что объект — недвижимость"],a:2,
+  e:"Судебную экспертизу отличают целевое назначение (содействие расследованию и рассмотрению дел), особый законный порядок назначения и проведения и особый круг уполномоченных субъектов."},
+ {id:"c17",who:"insp",t:"Словесный портрет",f:"Специалист по словам потерпевшей составил словесный портрет нападавшего. Раздаём ориентировку патрулям.",
+  q:"Какая это форма использования специальных знаний?",
+  o:["Процессуальная","Непроцессуальная","Судебная экспертиза","Экспертиза по делу об административном правонарушении"],a:1,
+  e:"Составление словесного портрета — непроцессуальная форма: результат ориентирующий и доказательством не является."}
+];
+
+const PRAISE = ["Точно. Так и запишем в заключение.","Чистая работа, коллега.","Верно. Видно, что лекции читали.","Именно так. Следующее дело.","Без замечаний."];
+const SCOLD = ["Не торопитесь с выводами, коллега.","Такое заключение суд бы не принял.","Ошибка. Перечитайте это место в лекции.","Здесь вы спутали понятия. Бывает.","Не страшно, на ошибках учатся."];
+
+/* ---------- Утилиты ---------- */
+const $ = s => document.querySelector(s);
+const app = $("#app"), tapeRight = $("#tape-right");
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const LETTERS = ["А","Б","В","Г"];
+const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const shuffle = a => {a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+const pick = a => a[Math.floor(Math.random()*a.length)];
+const store = {
+  get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+};
+/* Подключённая таблица: берётся из ссылки (?lab=...) или из памяти браузера */
+const LAB_RE=/^[A-Za-z0-9_-]{20,}$/;
+let LAB=(()=>{const q=new URLSearchParams(location.search).get("lab");
+  if(q&&LAB_RE.test(q)){store.set("tse_lab",q);return q;} return store.get("tse_lab","");})();
+const apiUrl=()=>API_URL||(LAB?`https://script.google.com/macros/s/${LAB}/exec`:"");
+const shareLink=()=>location.origin+location.pathname+(API_URL?"":"?lab="+LAB);
+function speaker(p, text, mood="neutral", quote=true){
+  return `<div class="speaker">${portrait(p,mood)}<div class="bubble"><p class="who"><b>${esc(p.name)}</b>, <span class="muted">${esc(p.role)}</span></p><p class="${quote?'said':''}">${text}</p></div></div>`;
+}
+async function api(body){
+  const r = await fetch(apiUrl(),{method:"POST",body:JSON.stringify(body)}); // text/plain — без preflight
+  if(!r.ok) throw new Error("HTTP "+r.status);
+  return r.json();
+}
+
+/* ---------- Игра ---------- */
+let P = store.get("tse_player",{name:"",group:"",avatar:0});
+let G = null;
+
+function welcome(){
+  tapeRight.textContent = "";
+  app.innerHTML = `
+    <h1>Экспертная лаборатория</h1>
+    ${speaker(PEOPLE.mentor,`Добро пожаловать в лабораторию. Сегодня к нам поступит ${CASES.length} дел — от следователя, судьи, инспектора и даже соседки. На каждое у вас ${TIME} секунд. За верное решение — 100 баллов и до 50 бонусных за скорость. Представьтесь, пожалуйста.`)}
+    <form id="f" novalidate>
+      <div class="field"><label for="nm">Фамилия и имя</label><input id="nm" autocomplete="name" maxlength="60" value="${esc(P.name)}"></div>
+      <div class="field"><label for="gr">Группа</label><input id="gr" maxlength="30" value="${esc(P.group)}"></div>
+      <p class="small" id="avl">Выберите свой аватар</p>
+      <div class="avatars" role="group" aria-labelledby="avl">
+        ${AVATARS.map((a,i)=>`<button type="button" class="av" data-i="${i}" aria-pressed="${i===P.avatar}" aria-label="Аватар ${i+1}">${portrait(a,"happy")}</button>`).join("")}
+      </div>
+      <p class="err" id="err"></p>
+      <button class="btn" type="submit">Приступить к работе</button>
+    </form>`;
+  app.querySelectorAll(".av").forEach(b=>b.onclick=()=>{P.avatar=+b.dataset.i;app.querySelectorAll(".av").forEach(x=>x.setAttribute("aria-pressed",x===b));});
+  $("#f").onsubmit = e=>{
+    e.preventDefault();
+    const name=$("#nm").value.trim().replace(/\s+/g," "), group=$("#gr").value.trim();
+    if(name.length<3){$("#err").textContent="Введите фамилию и имя — по ним вас найдут в результатах.";$("#nm").focus();return;}
+    if(!group){$("#err").textContent="Укажите группу.";$("#gr").focus();return;}
+    P.name=name;P.group=group;store.set("tse_player",P);
+    startGame();
+  };
+}
+
+function startGame(){
+  G = {deck:shuffle(CASES).map(c=>({...c,perm:shuffle([0,1,2,3])})),i:0,score:0,correct:0,answers:[],started:Date.now(),timer:null,left:TIME,answered:false};
+  showCase();
+}
+
+function showCase(){
+  const c = G.deck[G.i]; G.answered=false; G.left=TIME;
+  const me = AVATARS[P.avatar];
+  tapeRight.textContent = `${P.name} · ${G.score} баллов`;
+  app.innerHTML = `
+    <div class="meta"><span class="me">${portrait(me)}<span>Дело ${G.i+1} из ${G.deck.length}</span></span><span id="sec">${TIME} с</span></div>
+    <div class="timer"><i id="bar"></i></div>
+    <h2>${esc(c.t)}</h2>
+    ${speaker(PEOPLE[c.who], esc(c.f))}
+    <p class="q">${esc(c.q)}</p>
+    <div class="opts">${c.perm.map((k,pos)=>`<button class="opt" data-k="${k}"><b>${LETTERS[pos]}</b><span>${esc(c.o[k])}</span></button>`).join("")}</div>
+    <div id="after"></div>`;
+  app.querySelectorAll(".opt").forEach(b=>b.onclick=()=>answer(+b.dataset.k));
+  const bar=$("#bar"), sec=$("#sec");
+  clearInterval(G.timer);
+  G.timer=setInterval(()=>{
+    G.left-=0.1;
+    if(G.left<=0){G.left=0;bar.style.transform="scaleX(0)";answer(-1);return;}
+    bar.style.transform=`scaleX(${G.left/TIME})`; sec.textContent=Math.ceil(G.left)+" с";
+  },100);
+  window.scrollTo({top:0,behavior:"auto"});
+}
+
+function answer(k){
+  if(G.answered) return; G.answered=true; clearInterval(G.timer);
+  const c=G.deck[G.i], ok=k===c.a;
+  const pts = ok ? 100+Math.round(50*G.left/TIME) : 0;
+  G.score+=pts; if(ok) G.correct++;
+  G.answers.push(c.id+":"+(ok?1:0));
+  tapeRight.textContent = `${P.name} · ${G.score} баллов`;
+  app.querySelectorAll(".opt").forEach(b=>{
+    const j=+b.dataset.k; b.disabled=true;
+    b.classList.add(j===c.a?"right":(j===k?"wrong":"dim"));
+  });
+  const st=document.createElement("div"); st.className="stamp "+(ok?"ok":"bad");
+  st.textContent = ok?"Верно":(k===-1?"Время вышло":"Ошибка"); app.appendChild(st);
+  const pos = c.perm.indexOf(c.a);
+  const last = G.i===G.deck.length-1;
+  $("#after").innerHTML = `<div class="after">
+    <p class="pts">${ok?`+${pts} баллов`:`Правильный ответ: ${LETTERS[pos]}`}</p>
+    ${speaker(PEOPLE.mentor, `${esc(ok?pick(PRAISE):pick(SCOLD))} ${esc(c.e)}`, ok?"happy":"sad", false)}
+    <button class="btn" id="next">${last?"Сдать отчёт":"Следующее дело"}</button></div>`;
+  const nb=$("#next"); nb.onclick=()=>{G.i++; last?finish():showCase();};
+  nb.focus({preventScroll:true});
+  nb.scrollIntoView({behavior:reduce?"auto":"smooth",block:"nearest"});
+}
+
+function rank(r){
+  if(r>=.9) return ["Ведущий эксперт","Заключения можно подписывать без правок.","happy"];
+  if(r>=.7) return ["Эксперт","Уверенно. Пара спорных выводов, но в целом — достойно.","happy"];
+  if(r>=.4) return ["Специалист","Базу вы знаете, но экспертизу я бы вам пока не доверил.","neutral"];
+  return ["Понятой","Присутствовали, всё видели. Лекции стоит перечитать.","sad"];
+}
+
+function finish(){
+  const total=G.deck.length, duration=Math.round((Date.now()-G.started)/1000);
+  const [title,note,mood]=rank(G.correct/total);
+  const result={action:"save",name:P.name,group:P.group,avatar:P.avatar,score:G.score,correct:G.correct,total,duration,answers:G.answers.join(","),title};
+  tapeRight.textContent = `${P.name} · ${G.score} баллов`;
+  app.innerHTML = `
+    <p class="small">Итог проверки</p>
+    <p class="final-rank">${title}</p>
+    <div class="speaker">${portrait(AVATARS[P.avatar],mood)}<div class="bubble"><p class="who"><b>${esc(P.name)}</b>, <span class="muted">${esc(P.group)}</span></p><p>${G.score} баллов. Верных решений: ${G.correct} из ${total}. Время: ${Math.floor(duration/60)} мин ${duration%60} с.</p></div></div>
+    ${speaker(PEOPLE.mentor, esc(note), mood, false)}
+    <p class="status" id="status">Отправляю результат…</p>
+    <div class="row"><button class="btn" id="again">Пройти ещё раз</button><button class="btn ghost" id="change">Сменить игрока</button></div>`;
+  $("#again").onclick=startGame;
+  $("#change").onclick=welcome;
+  submit(result);
+}
+
+async function submit(result){
+  const s=$("#status");
+  if(!apiUrl()){
+    const local=store.get("tse_local_results",[]); local.push({...result,date:new Date().toISOString()}); store.set("tse_local_results",local);
+    if(s){s.className="status ok";s.textContent="Демо-режим: результат сохранён в этом браузере.";}
+    return;
+  }
+  try{
+    const r=await api(result);
+    if(!r.ok) throw new Error(r.error||"ошибка");
+    if(s){s.className="status ok";s.textContent="Результат отправлен руководителю лаборатории.";}
+  }catch(e){
+    const q=store.get("tse_pending",[]); q.push(result); store.set("tse_pending",q);
+    if(s){s.className="status bad";s.innerHTML=`Не удалось отправить результат (нет связи). Он сохранён и уйдёт автоматически при следующем открытии игры. <button class="btn ghost" id="retry">Отправить сейчас</button>`;
+      $("#retry").onclick=async()=>{s.textContent="Отправляю…";await flushPending();const left=store.get("tse_pending",[]).length;s.className="status "+(left?"bad":"ok");s.textContent=left?"Связи всё ещё нет. Попробуйте позже.":"Результат отправлен.";};}
+  }
+}
+async function flushPending(){
+  if(!apiUrl()) return;
+  let q=store.get("tse_pending",[]); const rest=[];
+  for(const r of q){try{const x=await api(r); if(!x.ok) rest.push(r);}catch(e){rest.push(r);}}
+  store.set("tse_pending",rest);
+}
+
+/* ---------- Кабинет руководителя ---------- */
+let ADMIN = {key:"",rows:[],best:true};
+
+function connectScreen(msg=""){
+  tapeRight.textContent="Кабинет руководителя";
+  app.innerHTML = `
+    <h1>Подключение таблицы</h1>
+    ${speaker(PEOPLE.mentor,"Это делается один раз. Вставьте сюда ссылку, которую Google показал после нажатия «Начать развертывание». Она начинается с https://script.google.com",'neutral',false)}
+    <form id="cf" novalidate>
+      <div class="field" style="max-width:640px"><label for="lk">Ссылка из Google</label><input id="lk" placeholder="https://script.google.com/macros/s/…/exec"></div>
+      <p class="err" id="err">${esc(msg)}</p>
+      <div class="row"><button class="btn" type="submit">Подключить</button><button class="btn ghost" type="button" id="demo">Сначала посмотреть демо</button></div>
+    </form>`;
+  $("#lk").focus();
+  $("#demo").onclick=()=>{ADMIN.rows=store.get("tse_local_results",[]);adminView(true);};
+  $("#cf").onsubmit=async e=>{
+    e.preventDefault();
+    const m=$("#lk").value.trim().match(/\/s\/([A-Za-z0-9_-]{20,})\//);
+    if(!m){$("#err").textContent="Это не та ссылка. Нужна ссылка вида https://script.google.com/macros/s/…/exec";return;}
+    const old=LAB; LAB=m[1];
+    $("#err").textContent="Проверяю связь…";
+    try{const r=await api({action:"ping"}); if(!r.ok) throw 0;
+      store.set("tse_lab",LAB); adminLogin();
+    }catch(err){LAB=old;$("#err").textContent="Google не отвечает. Проверьте, что при развертывании выбрали «У кого есть доступ: Все».";}
+  };
+}
+
+function adminLogin(msg=""){
+  tapeRight.textContent="Кабинет руководителя";
+  if(!apiUrl()) return connectScreen();
+  app.innerHTML = `
+    <h1>Кабинет руководителя</h1>
+    <form id="lf" novalidate>
+      <div class="field"><label for="pw">Пароль</label><input id="pw" type="password" autocomplete="current-password"></div>
+      <p class="small">Если входите впервые, просто придумайте пароль — он запомнится.</p>
+      <p class="err" id="err">${esc(msg)}</p>
+      <div class="row"><button class="btn" type="submit">Войти</button>${API_URL?"":`<button class="btn ghost" type="button" id="re">Подключить другую таблицу</button>`}</div>
+    </form>`;
+  $("#pw").focus();
+  const re=$("#re"); if(re) re.onclick=()=>connectScreen();
+  $("#lf").onsubmit=async e=>{
+    e.preventDefault(); const key=$("#pw").value; if(!key) return;
+    $("#err").textContent="Проверяю…";
+    try{
+      const r=await api({action:"list",key});
+      if(!r.ok){$("#err").textContent=r.error||"Доступ запрещён.";return;}
+      ADMIN.key=key; ADMIN.rows=r.rows||[]; ADMIN.first=!!r.first; adminView(false);
+    }catch(err){$("#err").textContent="Нет связи с таблицей. Проверьте интернет и попробуйте ещё раз.";}
+  };
+}
+
+function adminView(demo){
+  let rows=ADMIN.rows.map(r=>({...r,score:+r.score||0,correct:+r.correct||0,total:+r.total||0,duration:+r.duration||0,avatar:+r.avatar||0}));
+  const attempts=rows.length;
+  if(ADMIN.best){
+    const m=new Map();
+    rows.forEach(r=>{const k=(r.name+"|"+r.group).toLowerCase();const p=m.get(k);if(!p||r.score>p.score)m.set(k,r);});
+    rows=[...m.values()];
+  }
+  rows.sort((a,b)=>b.score-a.score||a.duration-b.duration);
+  const players=new Set(ADMIN.rows.map(r=>(r.name+"|"+r.group).toLowerCase())).size;
+  const avg=rows.length?Math.round(rows.reduce((s,r)=>s+r.score,0)/rows.length):0;
+  // статистика по вопросам — по всем попыткам
+  const qs={}; ADMIN.rows.forEach(r=>String(r.answers||"").split(",").forEach(x=>{const [id,v]=x.split(":");if(!id)return;qs[id]=qs[id]||{n:0,ok:0};qs[id].n++;if(v==="1")qs[id].ok++;}));
+  const qlist=CASES.map(c=>({t:c.t,...(qs[c.id]||{n:0,ok:0})})).filter(q=>q.n).map(q=>({...q,p:Math.round(100*q.ok/q.n)})).sort((a,b)=>a.p-b.p);
+  const fmtDate=d=>{const x=new Date(d);return isNaN(x)?esc(d):x.toLocaleString("ru-RU",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});};
+  app.innerHTML = `
+    <h1>Кабинет руководителя</h1>
+    ${demo?`<div class="demo">Демо-режим: показаны только результаты, сыгранные в этом браузере. Чтобы собирать результаты всей группы, подключите Google Таблицу по инструкции.</div>`:""}
+    ${!demo&&ADMIN.first?`<div class="demo">Пароль сохранён. Запомните его — в следующий раз вход будет по нему.</div>`:""}
+    ${demo?"":`<h3 style="margin-top:0">Ссылка для одногруппников</h3>
+    <div class="row" style="margin-bottom:22px"><input id="share" readonly value="${esc(shareLink())}" style="flex:1;min-width:220px;border:1.5px solid var(--line);background:var(--soft);border-radius:3px;padding:9px 12px;font-family:var(--narrow)"><button class="btn ghost" id="copy">Скопировать</button></div>`}
+    <div class="stats"><span><b>${players}</b>участников</span><span><b>${attempts}</b>попыток</span><span><b>${avg}</b>средний балл</span></div>
+    <div class="row" style="margin-bottom:14px">
+      <label class="chk"><input type="checkbox" id="best" ${ADMIN.best?"checked":""}> Только лучшая попытка каждого</label>
+      <button class="btn ghost" id="ref">Обновить</button>
+      <button class="btn ghost" id="csv">Скачать CSV</button>
+      ${demo?"":`<button class="btn ghost" id="out">Выйти</button>`}
+    </div>
+    ${rows.length?`<div class="tablebox"><table>
+      <thead><tr><th class="num">#</th><th>Игрок</th><th>Группа</th><th class="num">Баллы</th><th class="num">Верно</th><th>Звание</th><th class="num">Время</th><th>Дата</th></tr></thead>
+      <tbody>${rows.map((r,i)=>`<tr><td class="num">${i+1}</td><td><span class="mini">${portrait(AVATARS[r.avatar]||AVATARS[0])}</span>${esc(r.name)}</td><td>${esc(r.group)}</td><td class="num"><b>${r.score}</b></td><td class="num">${r.correct}/${r.total}</td><td>${esc(r.title||rank(r.total?r.correct/r.total:0)[0])}</td><td class="num">${Math.floor(r.duration/60)}:${String(r.duration%60).padStart(2,"0")}</td><td>${fmtDate(r.date)}</td></tr>`).join("")}</tbody>
+    </table></div>`:`<p class="muted">Пока никто не сыграл. Отправьте одногруппникам ссылку на игру.</p>`}
+    ${qlist.length?`<h3>Какие дела даются тяжелее всего</h3><div class="tablebox"><table>
+      <thead><tr><th>Дело</th><th>Доля верных ответов</th><th class="num">Ответов</th></tr></thead>
+      <tbody>${qlist.map(q=>`<tr><td>${esc(q.t)}</td><td><span class="barcell"><span style="display:block;width:100px;background:var(--line);border-radius:2px"><i style="width:${q.p}%"></i></span>${q.p}%</span></td><td class="num">${q.n}</td></tr>`).join("")}</tbody>
+    </table></div>`:""}`;
+  const cp=$("#copy"); if(cp) cp.onclick=async()=>{const i=$("#share");i.select();try{await navigator.clipboard.writeText(i.value);}catch(e){document.execCommand("copy");}cp.textContent="Скопировано";};
+  $("#best").onchange=e=>{ADMIN.best=e.target.checked;adminView(demo);};
+  $("#ref").onclick=async()=>{
+    if(demo){ADMIN.rows=store.get("tse_local_results",[]);return adminView(true);}
+    try{const r=await api({action:"list",key:ADMIN.key}); if(r.ok){ADMIN.rows=r.rows||[];adminView(false);}}catch(e){alert("Нет связи с таблицей.");}
+  };
+  $("#csv").onclick=()=>{
+    const head=["Место","Имя","Группа","Баллы","Верно","Всего","Время, с","Звание","Дата"];
+    const lines=[head,...rows.map((r,i)=>[i+1,r.name,r.group,r.score,r.correct,r.total,r.duration,r.title||"",r.date])]
+      .map(l=>l.map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(";"));
+    const blob=new Blob(["\ufeff"+lines.join("\r\n")],{type:"text/csv;charset=utf-8"});
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="rezultaty-tse.csv";a.click();
+  };
+  const out=$("#out"); if(out) out.onclick=()=>{ADMIN={key:"",rows:[],best:true};location.hash="";};
+}
+
+/* ---------- Маршрутизация ---------- */
+function route(){
+  if(G&&G.timer) clearInterval(G.timer);
+  location.hash==="#admin" ? adminLogin() : welcome();
+}
+document.addEventListener("keydown",e=>{
+  if(!G||G.answered||!app.querySelector(".opt")||e.target.tagName==="INPUT") return;
+  const n=parseInt(e.key,10);
+  if(n>=1&&n<=4){const b=app.querySelectorAll(".opt")[n-1]; if(b) answer(+b.dataset.k);}
+});
+addEventListener("hashchange",route);
+route();
+flushPending();
+</script>
+</body>
+</html>
