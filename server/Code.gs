@@ -6,12 +6,12 @@
  *  - выдаёт каждому игроку случайный набор дел и следит за лимитом попыток;
  *  - сам считает баллы по ответам (подделать итоговый балл нельзя);
  *  - хранит результаты в листе «Результаты»;
- *  - пускает в кабинет по токену, а пароль хранит только в виде хэша.
+ *  - пускает в кабинет по сессии (случайный ключ на сервере), пароль хранит только в виде хэша.
  *
  * Протокол: POST с JSON { action, ...параметры } → { ok, version, ... } или { ok:false, code, error }.
  */
 
-const VERSION = 4;
+const VERSION = 5;
 
 // Правила игры — должны совпадать с js/config.js
 const CFG = {
@@ -126,21 +126,12 @@ const HANDLERS = {
     const res = Auth.login(String(req.password || ''));
     const site = String(req.siteUrl || '');
     if (/^https:\/\/[^\s"'<>]+\/$/.test(site)) { props_().setProperty('SITE_URL', site); Bank.reset(); }
-    return res;
+    return Object.assign(res, adminData_()); // сразу отдаём данные кабинета — второй запрос не нужен
   },
 
   list: function (req) {
     Auth.verify(req.token);
-    return {
-      rows: Repo.all().map(function (a) {
-        return {
-          id: a.id, date: a.date instanceof Date ? a.date.toISOString() : String(a.date), name: a.name, group: a.group,
-          avatar: a.avatar, score: a.score, correct: a.correct, total: a.total, duration: a.duration, title: a.title,
-          answers: a.answers, status: isDone_(a) ? 'done' : 'started',
-        };
-      }),
-      extra: Limits.extra(), all: Limits.all(),
-    };
+    return adminData_();
   },
 
   grant: function (req) {
@@ -247,7 +238,8 @@ const Limits = {
   grantAll: function () { props_().setProperty('ALL', String(this.all() + 1)); },
 };
 
-/** Пароль хранится как соль + SHA-256. Вход выдаёт подписанный токен на CFG.TOKEN_DAYS дней. */
+/** Пароль хранится как соль + SHA-256. Вход выдаёт случайный ключ сессии на CFG.TOKEN_DAYS дней,
+ *  список сессий лежит в свойствах скрипта. */
 const Auth = {
   login: function (password) {
     const p = props_(), cache = CacheService.getScriptCache();
@@ -271,11 +263,25 @@ const Auth = {
     return { token: this.issue_(), first: first };
   },
   verify: function (token) {
-    const parts = String(token || '').split('.');
-    if (parts.length !== 2 || Number(parts[0]) < Date.now() || this.sign_(parts[0]) !== parts[1])
-      throw fail_('AUTH', 'Сессия истекла — войдите снова.');
+    token = String(token || '');
+    if (!token) throw fail_('AUTH', 'Нужно войти в кабинет.');
+    const exp = this.sessions_()[token];
+    if (!exp) throw fail_('AUTH', 'Сессия не найдена — войдите снова.');
+    if (exp < Date.now()) throw fail_('AUTH', 'Сессия истекла — войдите снова.');
   },
-  rotate: function () { props_().setProperty('SECRET', Utilities.getUuid() + Utilities.getUuid()); },
+  rotate: function () { props_().deleteProperty('SESSIONS'); },
+  sessions_: function () { try { return JSON.parse(props_().getProperty('SESSIONS') || '{}'); } catch (_) { return {}; } },
+  issue_: function () {
+    const now = Date.now(), all = this.sessions_(), keep = {};
+    // храним не больше 20 живых сессий
+    Object.keys(all).filter(function (t) { return all[t] > now; })
+      .sort(function (a, b) { return all[b] - all[a]; }).slice(0, 19)
+      .forEach(function (t) { keep[t] = all[t]; });
+    const token = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
+    keep[token] = now + CFG.TOKEN_DAYS * 864e5;
+    props_().setProperty('SESSIONS', JSON.stringify(keep));
+    return token;
+  },
   setPassword_: function (pw) {
     const salt = Utilities.getUuid();
     props_().setProperties({ PW_SALT: salt, PW_HASH: this.hash_(pw, salt) });
@@ -283,9 +289,6 @@ const Auth = {
   hash_: function (pw, salt) {
     return Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, salt + '|' + pw, Utilities.Charset.UTF_8));
   },
-  secret_: function () { let s = props_().getProperty('SECRET'); if (!s) { this.rotate(); s = props_().getProperty('SECRET'); } return s; },
-  sign_: function (payload) { return Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(payload, this.secret_())); },
-  issue_: function () { const exp = String(Date.now() + CFG.TOKEN_DAYS * 864e5); return exp + '.' + this.sign_(exp); },
 };
 
 /** Подсчёт баллов — так же, как в js/core/scoring.js. */
@@ -302,6 +305,19 @@ const Score_ = {
 };
 
 /* ============================== Помощники ============================== */
+
+function adminData_() {
+  return {
+    rows: Repo.all().map(function (a) {
+      return {
+        id: a.id, date: a.date instanceof Date ? a.date.toISOString() : String(a.date), name: a.name, group: a.group,
+        avatar: a.avatar, score: a.score, correct: a.correct, total: a.total, duration: a.duration, title: a.title,
+        answers: a.answers, status: isDone_(a) ? 'done' : 'started',
+      };
+    }),
+    extra: Limits.extra(), all: Limits.all(),
+  };
+}
 
 function props_() { return PropertiesService.getScriptProperties(); }
 function withLock_(fn) { const lock = LockService.getScriptLock(); lock.waitLock(15000); try { return fn(); } finally { lock.releaseLock(); } }
@@ -324,6 +340,6 @@ function player_(req) {
 // Забыли пароль: выберите resetPassword в списке функций сверху и нажмите «Выполнить».
 // После этого в кабинете можно придумать новый. Все устройства будут разлогинены.
 function resetPassword() {
-  ['PW', 'PW_HASH', 'PW_SALT'].forEach(function (k) { props_().deleteProperty(k); });
+  ['PW', 'PW_HASH', 'PW_SALT', 'SECRET'].forEach(function (k) { props_().deleteProperty(k); });
   Auth.rotate();
 }

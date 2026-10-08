@@ -13,8 +13,8 @@ export const CONFIG = Object.freeze({
   BASE_POINTS: 100,          // за верный ответ
   SPEED_BONUS: 50,           // максимум бонуса за скорость
   MIN_ANSWER_MS: 2000,       // быстрее этого бонус не растёт (защита от подделки времени)
-  CLIENT_VERSION: 4,
-  MIN_SERVER_VERSION: 4,     // если код в таблице старее — попросим его обновить
+  CLIENT_VERSION: 5,
+  MIN_SERVER_VERSION: 5,     // если код в таблице старее — попросим его обновить
   CASES_URL: "data/cases.json",
   REQUEST_TIMEOUT_MS: 20000,
 });

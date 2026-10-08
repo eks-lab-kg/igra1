@@ -8,9 +8,10 @@ import { buildDashboard, toCsv } from "./stats.js";
 import { go } from "../../router.js";
 import { loginView } from "./index.js";
 
-export default function dashboard(ctx) {
+export default function dashboard(ctx, { fresh = false } = {}) {
   let data = cache.get();
-  let status = data ? "Обновляю данные…" : "Загружаю данные…";
+  let status = fresh ? "Обновлено в " + new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })
+    : data ? "Обновляю данные…" : "Загружаю данные…";
   let busy = false;
 
   function render() {
@@ -123,6 +124,6 @@ export default function dashboard(ctx) {
   });
 
   render();
-  refresh();
+  if (!fresh) refresh();
   return off;
 }

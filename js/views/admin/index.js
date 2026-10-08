@@ -2,7 +2,7 @@
 import { html, mount, $ } from "../../ui/dom.js";
 import { speaker, errorBox } from "../../ui/components.js";
 import { call, lab } from "../../core/api.js";
-import { auth, view } from "./state.js";
+import { auth, cache, view } from "./state.js";
 import dashboard from "./dashboard.js";
 
 export default function admin(ctx) {
@@ -57,10 +57,11 @@ export function loginView(ctx, message = "") {
     if (!password) return;
     $("#in").disabled = true; err.classList.add("pending"); err.textContent = "Проверяю пароль…";
     try {
-      const { token, first } = await call("login", { password, siteUrl: lab.siteUrl() });
-      auth.save(token);
-      view.flash = first ? "Пароль сохранён. На этом устройстве вводить его больше не нужно." : "";
-      if (ctx.isCurrent()) dashboard(ctx);
+      const res = await call("login", { password, siteUrl: lab.siteUrl() });
+      auth.save(res.token);
+      cache.save({ rows: res.rows || [], extra: res.extra || {}, all: res.all || 0 });
+      view.flash = res.first ? "Пароль сохранён. На этом устройстве вводить его больше не нужно." : "";
+      if (ctx.isCurrent()) dashboard(ctx, { fresh: true }); // данные уже пришли вместе со входом
     } catch (ex) {
       $("#in").disabled = false; err.classList.remove("pending"); err.textContent = ex.message;
     }

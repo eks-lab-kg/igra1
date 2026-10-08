@@ -8,7 +8,7 @@ import { loadBank, shuffle } from "./bank.js";
 import { playerKey } from "./identity.js";
 import { pointsFor, rankFor } from "./scoring.js";
 
-const VERSION = 4;
+const VERSION = 5;
 const db = () => storage.get(KEYS.DEMO_DB, { attempts: [], extra: {}, all: 0 });
 const save = d => storage.set(KEYS.DEMO_DB, d);
 const fail = (code, error) => ({ ok: false, code, error });
@@ -47,7 +47,7 @@ const handlers = {
   },
 
   top: () => ({ rows: db().attempts.filter(a => a.status === "done").map(publicRow) }),
-  login: () => ({ token: "demo", first: false }),
+  login: () => { const d = db(); return { token: "demo", first: false, rows: d.attempts.map(adminRow), extra: d.extra, all: d.all }; },
   list: () => { const d = db(); return { rows: d.attempts.map(adminRow), extra: d.extra, all: d.all }; },
   grant({ name, group }) { const d = db(), k = playerKey({ name, group }); d.extra[k] = (d.extra[k] || 0) + 1; save(d); return { extra: d.extra, all: d.all }; },
   grantAll() { const d = db(); d.all += 1; save(d); return { extra: d.extra, all: d.all }; },
